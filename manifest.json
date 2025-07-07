@@ -2,7 +2,7 @@
     "name": "YouTube Playlist Manager",
     "short_name": "YT Playlist",
     "description": "Kelola koleksi YouTube playlist Anda dengan mudah",
-    "start_url": "/",
+    "start_url": "/YT-Playlist/",
     "display": "standalone",
     "background_color": "#1f2937",
     "theme_color": "#ef4444",
