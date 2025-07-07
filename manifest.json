@@ -7,7 +7,7 @@
     "background_color": "#1f2937",
     "theme_color": "#ef4444",
     "orientation": "portrait-primary",
-    "scope": "/",
+    "scope": "/YT-Playlist/",
     "lang": "id",
     "dir": "ltr",
     "categories": ["entertainment", "productivity", "music"],
