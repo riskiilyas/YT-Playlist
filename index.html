@@ -1,22 +1,23 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube Playlist Manager</title>
     <meta name="description" content="Kelola koleksi YouTube playlist Anda">
     <meta name="theme-color" content="#ef4444">
-    
+
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="YT Playlist Manager">
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- Tailwind Config -->
     <script>
         tailwind.config = {
@@ -31,63 +32,475 @@
             }
         }
     </script>
-    
+
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    
+
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-    
+
     <!-- Custom Styles -->
     <style>
-        [x-cloak] { display: none !important; }
-        
+        [x-cloak] {
+            display: none !important;
+        }
+
         .glass {
             backdrop-filter: blur(10px);
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
-        
+
         .glass-dark {
             backdrop-filter: blur(10px);
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        
+
         .youtube-embed {
             aspect-ratio: 16/9;
         }
-        
+
         .scrollbar-hide {
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
-        
+
         .scrollbar-hide::-webkit-scrollbar {
             display: none;
         }
-        
+
         .animate-fade-in {
             animation: fadeIn 0.3s ease-in-out;
         }
-        
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        
+
         .animate-slide-up {
             animation: slideUp 0.3s ease-out;
         }
-        
+
         @keyframes slideUp {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
+            from {
+                transform: translateY(100%);
+            }
+
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .pulse-ring {
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.8);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(2.4);
+                opacity: 0;
+            }
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800 min-h-screen transition-colors duration-300">
+
+<body
+    class="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800 min-h-screen transition-colors duration-300">
     <div x-data="playlistManager()" x-cloak class="min-h-screen">
+
+        <!-- API Key Setup Modal (First Time) -->
+        <div x-show="!apiKey && showSetup"
+            class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+
+            <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-lg shadow-2xl animate-fade-in">
+                <div class="text-center mb-8">
+                    <div
+                        class="w-20 h-20 bg-youtube rounded-2xl flex items-center justify-center mx-auto mb-4 relative">
+                        <i data-lucide="key" class="text-white w-8 h-8"></i>
+                        <div class="absolute inset-0 bg-youtube rounded-2xl pulse-ring"></div>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                        Setup YouTube API
+                    </h2>
+                    <p class="text-gray-600 dark:text-gray-400">
+                        Untuk menggunakan aplikasi ini, Anda perlu API key YouTube
+                    </p>
+                </div>
+
+                <div class="space-y-6">
+                    <!-- API Key Input -->
+                    <div>
+                        <h3 class="font-medium text-gray-900 dark:text-white mb-3">YouTube API Key</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-2 h-2 rounded-full" :class="apiKey ? 'bg-green-500' : 'bg-red-500'">
+                                    </div>
+                                    <span class="text-sm text-gray-700 dark:text-gray-300">
+                                        <template x-if="apiKey">
+                                            API Key Aktif
+                                        </template>
+                                        <template x-if="!apiKey">
+                                            Demo Mode
+                                        </template>
+                                    </span>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button @click="editApiKey()"
+                                        class="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm px-2 py-1 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors">
+                                        <template x-if="apiKey">
+                                            Edit
+                                        </template>
+                                        <template x-if="!apiKey">
+                                            Setup
+                                        </template>
+                                    </button>
+                                    <template x-if="apiKey">
+                                        <button @click="removeApiKey()"
+                                            class="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors">
+                                            Hapus
+                                        </button>
+                                    </template>
+                                    <template x-if="!apiKey">
+                                        <button @click="resetSetup()"
+                                            class="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 text-sm px-2 py-1 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors">
+                                            Reset
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- API Key Edit Form -->
+                            <div x-show="editingApiKey" x-transition class="space-y-3">
+                                <div class="relative">
+                                    <input x-model="newApiKey" :type="showNewApiKey ? 'text' : 'password'"
+                                        class="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-youtube focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
+                                        placeholder="Masukkan API key baru..." @input="newApiTestResult = null">
+                                    <button type="button" @click="showNewApiKey = !showNewApiKey"
+                                        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                                        <i data-lucide="eye" x-show="!showNewApiKey" class="w-5 h-5"></i>
+                                        <i data-lucide="eye-off" x-show="showNewApiKey" class="w-5 h-5"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Test New API Key -->
+                                <div x-show="newApiKey.length > 20" class="space-y-3">
+                                    <button @click="testNewApiKey()" :disabled="testingNewApi"
+                                        class="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2">
+                                        <template x-if="testingNewApi">
+                                            <div
+                                                class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin">
+                                            </div>
+                                        </template>
+                                        <template x-if="!testingNewApi">
+                                            <i data-lucide="wifi" class="w-4 h-4"></i>
+                                        </template>
+                                        <span x-text="testingNewApi ? 'Testing...' : 'Test API Key'"></span>
+                                    </button>
+
+                                    <div x-show="newApiTestResult" x-transition class="p-3 rounded-lg"
+                                        :class="newApiTestResult?.success ? 'bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-700' : 'bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700'">
+                                        <div class="flex items-center space-x-2">
+                                            <i data-lucide="check-circle" x-show="newApiTestResult?.success"
+                                                class="w-5 h-5 text-green-600 dark:text-green-400"></i>
+                                            <i data-lucide="x-circle" x-show="!newApiTestResult?.success"
+                                                class="w-5 h-5 text-red-600 dark:text-red-400"></i>
+                                            <span class="text-sm font-medium"
+                                                :class="newApiTestResult?.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'"
+                                                x-text="newApiTestResult?.message"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex space-x-2">
+                                    <button @click="updateApiKey()" :disabled="!newApiKey || testingNewApi"
+                                        class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-3 py-2 rounded text-sm transition-colors disabled:cursor-not-allowed">
+                                        <template x-if="testingNewApi">
+                                            <span>Testing...</span>
+                                        </template>
+                                        <template x-if="!testingNewApi">
+                                            <span>Simpan</span>
+                                        </template>
+                                    </button>
+                                    <button @click="cancelEditApiKey()"
+                                        class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                        Batal
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Instructions -->
+                    <div
+                        class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                        <h3 class="font-medium text-blue-900 dark:text-blue-100 mb-2 flex items-center">
+                            <i data-lucide="info" class="w-4 h-4 mr-2"></i>
+                            Cara mendapatkan API Key:
+                        </h3>
+                        <ol class="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-decimal list-inside">
+                            <li>Buka <a href="https://console.cloud.google.com" target="_blank"
+                                    class="underline hover:no-underline">Google Cloud Console</a></li>
+                            <li>Buat project baru atau pilih project yang ada</li>
+                            <li>Aktifkan "YouTube Data API v3"</li>
+                            <li>Buat credentials > API Key</li>
+                            <li>Copy dan paste API key di atas</li>
+                        </ol>
+                    </div>
+
+                    <!-- Test Connection -->
+                    <div x-show="setupData.apiKey.length > 20" class="space-y-3">
+                        <button @click="testApiKey()" :disabled="testingApi"
+                            class="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-3 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2">
+                            <template x-if="testingApi">
+                                <div
+                                    class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin">
+                                </div>
+                            </template>
+                            <template x-if="!testingApi">
+                                <i data-lucide="wifi" class="w-4 h-4"></i>
+                            </template>
+                            <span x-text="testingApi ? 'Testing...' : 'Test API Key'"></span>
+                        </button>
+
+                        <div x-show="apiTestResult" x-transition class="p-3 rounded-lg"
+                            :class="apiTestResult?.success ? 'bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-700' : 'bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700'">
+                            <div class="flex items-center space-x-2">
+                                <i data-lucide="check-circle" x-show="apiTestResult?.success"
+                                    class="w-5 h-5 text-green-600 dark:text-green-400"></i>
+                                <i data-lucide="x-circle" x-show="!apiTestResult?.success"
+                                    class="w-5 h-5 text-red-600 dark:text-red-400"></i>
+                                <span class="text-sm font-medium"
+                                    :class="apiTestResult?.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'"
+                                    x-text="apiTestResult?.message"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex space-x-3">
+                        <button @click="skipSetup()"
+                            class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            Lewati (Demo Mode)
+                        </button>
+                        <button @click="saveApiKey()"
+                            :disabled="!setupData.apiKey || (apiTestResult && !apiTestResult.success)"
+                            class="flex-1 bg-youtube hover:bg-youtube-dark disabled:bg-gray-400 text-white px-4 py-3 rounded-lg disabled:cursor-not-allowed transition-all duration-200">
+                            Simpan & Lanjutkan
+                        </button>
+                    </div>
+
+                    <!-- Demo Mode Info -->
+                    <div
+                        class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                        <div class="flex items-start space-x-2">
+                            <i data-lucide="alert-triangle"
+                                class="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5"></i>
+                            <div>
+                                <h4 class="font-medium text-yellow-800 dark:text-yellow-200 mb-1">Demo Mode</h4>
+                                <p class="text-sm text-yellow-700 dark:text-yellow-300">
+                                    Jika Anda memilih "Lewati", aplikasi akan berjalan dengan data dummy untuk demo.
+                                    Anda bisa mengatur API key nanti di menu pengaturan.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+<!-- Settings Modal - Replace yang ada -->
+<div x-show="showSettings" 
+     x-transition:enter="transition ease-out duration-300"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="transition ease-in duration-200"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    
+    <div x-show="showSettings"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform scale-95"
+         x-transition:enter-end="opacity-100 transform scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 transform scale-100"
+         x-transition:leave-end="opacity-0 transform scale-95"
+         @click.away="showSettings = false"
+         class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+        
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
+                Pengaturan
+            </h2>
+            <button @click="showSettings = false" 
+                    class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        
+        <div class="space-y-6">
+            <!-- API Key Management -->
+            <div>
+                <h3 class="font-medium text-gray-900 dark:text-white mb-3">YouTube API Key</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-2 h-2 rounded-full"
+                                 :class="apiKey ? 'bg-green-500' : 'bg-red-500'"></div>
+                            <span class="text-sm text-gray-700 dark:text-gray-300">
+                                <template x-if="apiKey">
+                                    API Key Aktif
+                                </template>
+                                <template x-if="!apiKey">
+                                    Demo Mode
+                                </template>
+                            </span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button @click="editApiKey()" 
+                                    class="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm px-2 py-1 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors">
+                                <template x-if="apiKey">
+                                    Edit
+                                </template>
+                                <template x-if="!apiKey">
+                                    Setup
+                                </template>
+                            </button>
+                            <template x-if="apiKey">
+                                <button @click="removeApiKey()" 
+                                        class="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors">
+                                    Hapus
+                                </button>
+                            </template>
+                            <template x-if="!apiKey">
+                                <button @click="resetSetup()" 
+                                               class="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 text-sm px-2 py-1 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors">
+                                           Reset
+                                       </button>
+                                   </template>
+                               </div>
+                           </div>
+                           
+                           <!-- API Key Edit Form -->
+                           <div x-show="editingApiKey" x-transition class="space-y-3">
+                               <div class="relative">
+                                   <input x-model="newApiKey" 
+                                          :type="showNewApiKey ? 'text' : 'password'"
+                                          class="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-youtube focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
+                                          placeholder="Masukkan API key baru..."
+                                          @input="newApiTestResult = null">
+                                   <button type="button" 
+                                           @click="showNewApiKey = !showNewApiKey"
+                                           class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                                       <i data-lucide="eye" x-show="!showNewApiKey" class="w-5 h-5"></i>
+                                       <i data-lucide="eye-off" x-show="showNewApiKey" class="w-5 h-5"></i>
+                                   </button>
+                               </div>
+
+                               <!-- Test New API Key -->
+                               <div x-show="newApiKey.length > 20" class="space-y-3">
+                                   <button @click="testNewApiKey()" 
+                                           :disabled="testingNewApi"
+                                           class="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2">
+                                       <template x-if="testingNewApi">
+                                           <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                       </template>
+                                       <template x-if="!testingNewApi">
+                                           <i data-lucide="wifi" class="w-4 h-4"></i>
+                                       </template>
+                                       <span x-text="testingNewApi ? 'Testing...' : 'Test API Key'"></span>
+                                   </button>
+                                   
+                                   <div x-show="newApiTestResult" 
+                                        x-transition
+                                        class="p-3 rounded-lg"
+                                        :class="newApiTestResult?.success ? 'bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-700' : 'bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700'">
+                                       <div class="flex items-center space-x-2">
+                                           <i data-lucide="check-circle" 
+                                              x-show="newApiTestResult?.success" 
+                                              class="w-5 h-5 text-green-600 dark:text-green-400"></i>
+                                           <i data-lucide="x-circle" 
+                                              x-show="!newApiTestResult?.success" 
+                                              class="w-5 h-5 text-red-600 dark:text-red-400"></i>
+                                           <span class="text-sm font-medium"
+                                                 :class="newApiTestResult?.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'"
+                                                 x-text="newApiTestResult?.message"></span>
+                                       </div>
+                                   </div>
+                               </div>
+                               
+                               <div class="flex space-x-2">
+                                   <button @click="updateApiKey()" 
+                                           :disabled="!newApiKey || testingNewApi"
+                                           class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-3 py-2 rounded text-sm transition-colors disabled:cursor-not-allowed">
+                                       <template x-if="testingNewApi">
+                                           <span>Testing...</span>
+                                       </template>
+                                       <template x-if="!testingNewApi">
+                                           <span>Simpan</span>
+                                       </template>
+                                   </button>
+                                   <button @click="cancelEditApiKey()" 
+                                           class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                       Batal
+                                   </button>
+                               </div>
+                           </div>
+                       </div>
+                   </div>
+                   
+                   <!-- Data Management -->
+                   <div>
+                       <h3 class="font-medium text-gray-900 dark:text-white mb-3">Data</h3>
+                       <div class="space-y-2">
+                           <button @click="exportData()" 
+                                   class="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center space-x-2">
+                               <i data-lucide="download" class="w-4 h-4"></i>
+                               <span>Export Data</span>
+                           </button>
+                           <button @click="importData()" 
+                                   class="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center space-x-2">
+                               <i data-lucide="upload" class="w-4 h-4"></i>
+                               <span>Import Data</span>
+                           </button>
+                           <button @click="clearAllData()" 
+                                   class="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex items-center space-x-2">
+                               <i data-lucide="trash-2" class="w-4 h-4"></i>
+                               <span>Hapus Semua Data</span>
+                           </button>
+                       </div>
+                   </div>
+                   
+                   <!-- App Info -->
+                   <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+                       <div class="text-center text-sm text-gray-500 dark:text-gray-400">
+                           <p>YouTube Playlist Manager v2.0</p>
+                           <p>PWA Edition</p>
+                       </div>
+                   </div>
+               </div>
+           </div>
+       </div>
+
+        <!-- Hidden file input for import -->
+        <input type="file" x-ref="fileInput" @change="handleFileImport($event)" accept=".json" class="hidden">
+
         <!-- Header -->
         <header class="glass dark:glass-dark p-6 mb-8 sticky top-0 z-40">
             <div class="max-w-7xl mx-auto">
@@ -102,21 +515,30 @@
                             </h1>
                             <p class="text-gray-600 dark:text-gray-300 text-sm">
                                 Kelola koleksi YouTube playlist Anda
+                                <template x-if="!apiKey">
+                                    <span class="text-yellow-600 dark:text-yellow-400">(Demo Mode)</span>
+                                </template>
                             </p>
                         </div>
                     </div>
-                    
+
                     <div class="flex items-center space-x-4">
+                        <!-- Settings Button -->
+                        <button @click="showSettings = true"
+                            class="p-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-200">
+                            <i data-lucide="settings" class="w-5 h-5 text-gray-700 dark:text-gray-300"></i>
+                        </button>
+
                         <!-- Dark Mode Toggle -->
-                        <button @click="toggleDarkMode()" 
-                                class="p-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-200">
+                        <button @click="toggleDarkMode()"
+                            class="p-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-200">
                             <i data-lucide="sun" class="w-5 h-5 text-gray-700 dark:hidden"></i>
                             <i data-lucide="moon" class="w-5 h-5 text-gray-300 hidden dark:block"></i>
                         </button>
-                        
+
                         <!-- Add Collection Button -->
-                        <button @click="showAddForm = true" 
-                                class="bg-youtube hover:bg-youtube-dark text-white px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center space-x-2">
+                        <button @click="showAddForm = true"
+                            class="bg-youtube hover:bg-youtube-dark text-white px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center space-x-2">
                             <i data-lucide="plus" class="w-4 h-4"></i>
                             <span class="hidden sm:inline">Tambah Collection</span>
                         </button>
@@ -125,72 +547,67 @@
             </div>
         </header>
 
+        <!-- Rest of the content remains the same as previous version -->
+        <!-- Add Collection Modal, Main Content, Collection Detail Modal, Toast Notifications -->
+        <!-- ... (keeping the same structure as before) ... -->
+
         <!-- Add Collection Modal -->
-        <div x-show="showAddForm" 
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0"
-             x-transition:enter-end="opacity-100"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0"
-             class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            
-            <div x-show="showAddForm"
-                 x-transition:enter="transition ease-out duration-300"
-                 x-transition:enter-start="opacity-0 transform scale-95"
-                 x-transition:enter-end="opacity-100 transform scale-100"
-                 x-transition:leave="transition ease-in duration-200"
-                 x-transition:leave-start="opacity-100 transform scale-100"
-                 x-transition:leave-end="opacity-0 transform scale-95"
-                 @click.away="showAddForm = false"
-                 class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-                
+        <div x-show="showAddForm" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+
+            <div x-show="showAddForm" x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 transform scale-95"
+                x-transition:enter-end="opacity-100 transform scale-100"
+                x-transition:leave="transition ease-in duration-200"
+                x-transition:leave-start="opacity-100 transform scale-100"
+                x-transition:leave-end="opacity-0 transform scale-95" @click.away="showAddForm = false"
+                class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+
                 <div class="flex items-center justify-between mb-6">
                     <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
                         Tambah Collection Baru
                     </h2>
-                    <button @click="showAddForm = false" 
-                            class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <button @click="showAddForm = false"
+                        class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                         <i data-lucide="x" class="w-5 h-5"></i>
                     </button>
                 </div>
-                
+
                 <form @submit.prevent="addCollection()">
                     <div class="space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Nama Collection
                             </label>
-                            <input x-model="newCollection.name" 
-                                   type="text" 
-                                   required
-                                   class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-youtube focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-                                   placeholder="Masukkan nama collection...">
+                            <input x-model="newCollection.name" type="text" required
+                                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-youtube focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
+                                placeholder="Masukkan nama collection...">
                         </div>
-                        
+
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Link YouTube Playlist
                             </label>
-                            <input x-model="newCollection.url" 
-                                   type="url" 
-                                   required
-                                   class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-youtube focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-                                   placeholder="https://www.youtube.com/playlist?list=...">
+                            <input x-model="newCollection.url" type="url" required
+                                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-youtube focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
+                                placeholder="https://www.youtube.com/playlist?list=...">
                         </div>
                     </div>
-                    
+
                     <div class="flex space-x-3 mt-6">
-                        <button type="button" 
-                                @click="showAddForm = false"
-                                class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <button type="button" @click="showAddForm = false"
+                            class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                             Batal
                         </button>
-                        <button type="submit" 
-                                :disabled="isLoading"
-                                class="flex-1 bg-youtube hover:bg-youtube-dark text-white px-4 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center space-x-2">
+                        <button type="submit" :disabled="isLoading"
+                            class="flex-1 bg-youtube hover:bg-youtube-dark text-white px-4 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center space-x-2">
                             <template x-if="isLoading">
-                                <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                <div
+                                    class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin">
+                                </div>
                             </template>
                             <template x-if="!isLoading">
                                 <span>Tambah Collection</span>
@@ -207,25 +624,26 @@
             <div x-show="collections.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <template x-for="collection in collections" :key="collection.id">
                     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer animate-fade-in"
-                         @click="openCollection(collection)">
-                        
+                        @click="openCollection(collection)">
+
                         <!-- Collection Thumbnail -->
                         <div class="relative overflow-hidden">
-                            <img :src="collection.thumbnail" 
-                                 :alt="collection.name"
-                                 class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300">
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            <img :src="collection.thumbnail" :alt="collection.name"
+                                class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300">
+                            <div
+                                class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            </div>
                             <div class="absolute top-3 right-3 bg-black/70 text-white px-2 py-1 rounded-lg text-sm">
                                 <span x-text="collection.videoCount"></span> video
                             </div>
                         </div>
-                        
+
                         <!-- Collection Info -->
                         <div class="p-4">
-                            <h3 class="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2" 
+                            <h3 class="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2"
                                 x-text="collection.name"></h3>
-                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2" 
-                               x-text="collection.description"></p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2"
+                                x-text="collection.description"></p>
                             <div class="flex items-center text-xs text-gray-500 dark:text-gray-400">
                                 <i data-lucide="calendar" class="w-3 h-3 mr-1"></i>
                                 <span x-text="formatDate(collection.createdAt)"></span>
@@ -236,9 +654,9 @@
             </div>
 
             <!-- Empty State -->
-            <div x-show="collections.length === 0" 
-                 class="text-center py-16 animate-fade-in">
-                <div class="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <div x-show="collections.length === 0" class="text-center py-16 animate-fade-in">
+                <div
+                    class="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mx-auto mb-6">
                     <i data-lucide="folder-open" class="w-12 h-12 text-gray-400 dark:text-gray-500"></i>
                 </div>
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
@@ -247,8 +665,8 @@
                 <p class="text-gray-600 dark:text-gray-400 mb-6">
                     Tambahkan collection pertama Anda dengan mengklik tombol di atas
                 </p>
-                <button @click="showAddForm = true" 
-                        class="bg-youtube hover:bg-youtube-dark text-white px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 inline-flex items-center space-x-2">
+                <button @click="showAddForm = true"
+                    class="bg-youtube hover:bg-youtube-dark text-white px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 inline-flex items-center space-x-2">
                     <i data-lucide="plus" class="w-4 h-4"></i>
                     <span>Tambah Collection</span>
                 </button>
@@ -256,114 +674,106 @@
         </main>
 
         <!-- Collection Detail Modal -->
-        <div x-show="selectedCollection" 
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0"
-             x-transition:enter-end="opacity-100"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0"
-             class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            
-            <div x-show="selectedCollection"
-                 x-transition:enter="transition ease-out duration-300"
-                 x-transition:enter-start="opacity-0 transform scale-95"
-                 x-transition:enter-end="opacity-100 transform scale-100"
-                 x-transition:leave="transition ease-in duration-200"
-                 x-transition:leave-start="opacity-100 transform scale-100"
-                 x-transition:leave-end="opacity-0 transform scale-95"
-                 @click.away="selectedCollection = null"
-                 class="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl">
-                
+        <div x-show="selectedCollection" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+
+            <div x-show="selectedCollection" x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 transform scale-95"
+                x-transition:enter-end="opacity-100 transform scale-100"
+                x-transition:leave="transition ease-in duration-200"
+                x-transition:leave-start="opacity-100 transform scale-100"
+                x-transition:leave-end="opacity-0 transform scale-95" @click.away="selectedCollection = null"
+                class="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl">
+
                 <!-- Modal Header -->
-                <div class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between z-10">
+                <div
+                    class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between z-10">
                     <div class="flex items-center space-x-4">
-                        <img :src="selectedCollection?.thumbnail" 
-                             :alt="selectedCollection?.name"
-                             class="w-12 h-12 rounded-lg object-cover">
+                        <img :src="selectedCollection?.thumbnail" :alt="selectedCollection?.name"
+                            class="w-12 h-12 rounded-lg object-cover">
                         <div>
-                            <h2 class="text-xl font-semibold text-gray-900 dark:text-white" 
+                            <h2 class="text-xl font-semibold text-gray-900 dark:text-white"
                                 x-text="selectedCollection?.name"></h2>
-                            <p class="text-sm text-gray-600 dark:text-gray-400" 
-                               x-text="selectedCollection?.videoCount + ' video'"></p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400"
+                                x-text="selectedCollection?.videoCount + ' video'"></p>
                         </div>
                     </div>
-                    
+
                     <div class="flex items-center space-x-3">
-                        <a :href="selectedCollection?.playlistUrl" 
-                           target="_blank"
-                           class="bg-youtube hover:bg-youtube-dark text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
+                        <a :href="selectedCollection?.playlistUrl" target="_blank"
+                            class="bg-youtube hover:bg-youtube-dark text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
                             <i data-lucide="external-link" class="w-4 h-4"></i>
                             <span>Lihat di YouTube</span>
                         </a>
-                        <button @click="deleteCollection(selectedCollection)" 
-                                class="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2">
+                        <button @click="deleteCollection(selectedCollection)"
+                            class="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2">
                             <i data-lucide="trash-2" class="w-5 h-5"></i>
                         </button>
-                        <button @click="selectedCollection = null" 
-                                class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2">
+                        <button @click="selectedCollection = null"
+                            class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2">
                             <i data-lucide="x" class="w-5 h-5"></i>
                         </button>
                     </div>
                 </div>
-                
+
                 <!-- Modal Content -->
                 <div class="p-6 overflow-y-auto max-h-[calc(90vh-120px)] scrollbar-hide">
                     <!-- Video Player -->
                     <div x-show="currentVideo" class="mb-6">
                         <div class="youtube-embed bg-black rounded-lg overflow-hidden">
-                            <iframe :src="'https://www.youtube.com/embed/' + currentVideo?.videoId + '?autoplay=1'" 
-                                    class="w-full h-full"
-                                    frameborder="0" 
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                                    allowfullscreen>
+                            <iframe :src="'https://www.youtube.com/embed/' + currentVideo?.videoId + '?autoplay=1'"
+                                class="w-full h-full" frameborder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowfullscreen>
                             </iframe>
                         </div>
                         <div class="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                            <h3 class="font-semibold text-gray-900 dark:text-white mb-2" 
-                                x-text="currentVideo?.title"></h3>
-                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-3" 
-                               x-text="currentVideo?.description"></p>
+                            <h3 class="font-semibold text-gray-900 dark:text-white mb-2" x-text="currentVideo?.title">
+                            </h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-3" x-text="currentVideo?.description">
+                            </p>
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
                                     <span x-text="currentVideo?.channelTitle"></span>
                                     <span x-text="formatDate(currentVideo?.publishedAt)"></span>
                                 </div>
-                                <a :href="'https://www.youtube.com/watch?v=' + currentVideo?.videoId" 
-                                   target="_blank"
-                                   class="bg-youtube hover:bg-youtube-dark text-white px-3 py-1 rounded text-sm transition-colors">
+                                <a :href="'https://www.youtube.com/watch?v=' + currentVideo?.videoId" target="_blank"
+                                    class="bg-youtube hover:bg-youtube-dark text-white px-3 py-1 rounded text-sm transition-colors">
                                     Lihat di YouTube
                                 </a>
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Video List -->
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <template x-for="video in selectedCollection?.videos" :key="video.videoId">
                             <div class="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                                 @click="playVideo(video)"
-                                 :class="{'ring-2 ring-youtube': currentVideo?.videoId === video.videoId}">
-                                
+                                @click="playVideo(video)"
+                                :class="{'ring-2 ring-youtube': currentVideo?.videoId === video.videoId}">
+
                                 <div class="relative">
-                                    <img :src="video.thumbnail" 
-                                         :alt="video.title"
-                                         class="w-full h-32 object-cover">
-                                    <div class="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
-                                        <div class="w-12 h-12 bg-youtube rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                    <img :src="video.thumbnail" :alt="video.title" class="w-full h-32 object-cover">
+                                    <div
+                                        class="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
+                                        <div
+                                            class="w-12 h-12 bg-youtube rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                                             <i data-lucide="play" class="w-6 h-6 text-white"></i>
                                         </div>
                                     </div>
-                                    <div class="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs">
+                                    <div
+                                        class="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs">
                                         <span x-text="video.duration"></span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="p-3">
-                                    <h4 class="font-medium text-gray-900 dark:text-white text-sm mb-1 line-clamp-2" 
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-sm mb-1 line-clamp-2"
                                         x-text="video.title"></h4>
-                                    <p class="text-xs text-gray-600 dark:text-gray-400" 
-                                       x-text="video.channelTitle"></p>
+                                    <p class="text-xs text-gray-600 dark:text-gray-400" x-text="video.channelTitle"></p>
                                 </div>
                             </div>
                         </template>
@@ -373,35 +783,26 @@
         </div>
 
         <!-- Toast Notifications -->
-        <div x-show="toast.show" 
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 transform translate-x-full"
-             x-transition:enter-end="opacity-100 transform translate-x-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 transform translate-x-0"
-             x-transition:leave-end="opacity-0 transform translate-x-full"
-             class="fixed top-20 right-4 z-50 max-w-sm">
-            
-            <div class="bg-white dark:bg-gray-800 border-l-4 shadow-lg rounded-lg p-4"
-                 :class="{
-                     'border-green-500': toast.type === 'success',
-                     'border-red-500': toast.type === 'error',
-                     'border-blue-500': toast.type === 'info'
-                 }">
+        <div x-show="toast.show" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 transform translate-x-full"
+            x-transition:enter-end="opacity-100 transform translate-x-0"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 transform translate-x-0"
+            x-transition:leave-end="opacity-0 transform translate-x-full" class="fixed top-20 right-4 z-50 max-w-sm">
+
+            <div class="bg-white dark:bg-gray-800 border-l-4 shadow-lg rounded-lg p-4" :class="{
+                    'border-green-500': toast.type === 'success',
+                    'border-red-500': toast.type === 'error',
+                    'border-blue-500': toast.type === 'info'
+                }">
                 <div class="flex items-center space-x-3">
                     <div class="flex-shrink-0">
-                        <i data-lucide="check-circle" 
-                           class="w-5 h-5 text-green-500"
-                           x-show="toast.type === 'success'"></i>
-                        <i data-lucide="x-circle" 
-                           class="w-5 h-5 text-red-500"
-                           x-show="toast.type === 'error'"></i>
-                        <i data-lucide="info" 
-                           class="w-5 h-5 text-blue-500"
-                           x-show="toast.type === 'info'"></i>
+                        <i data-lucide="check-circle" class="w-5 h-5 text-green-500"
+                            x-show="toast.type === 'success'"></i>
+                        <i data-lucide="x-circle" class="w-5 h-5 text-red-500" x-show="toast.type === 'error'"></i>
+                        <i data-lucide="info" class="w-5 h-5 text-blue-500" x-show="toast.type === 'info'"></i>
                     </div>
-                    <p class="text-sm font-medium text-gray-900 dark:text-white" 
-                       x-text="toast.message"></p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white" x-text="toast.message"></p>
                 </div>
             </div>
         </div>
@@ -410,4 +811,5 @@
     <!-- Scripts -->
     <script src="script.js"></script>
 </body>
+
 </html>
